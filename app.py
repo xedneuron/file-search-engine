@@ -1,82 +1,16 @@
 import os
 import time
 from flask import Flask, render_template, request, abort
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-
-# --- SEARCH ENGINE LOGIC (Same as before) ---
-class LocalFileSearch:
-    def __init__(self, root_dir):
-        self.root_dir = os.path.abspath(root_dir)
-        self.documents = []
-        self.metadata = []
-        self.vectorizer = TfidfVectorizer(stop_words='english')
-        self.tfidf_matrix = None
-        self.is_indexed = False
-
-    def index_files(self):
-        print(f"Indexing files in {self.root_dir}...")
-        self.documents = []
-        self.metadata = []
-        
-        for dirpath, _, filenames in os.walk(self.root_dir):
-            for filename in filenames:
-                if filename.endswith(('.txt', '.md', '.py', '.json', '.csv', '.log')):
-                    filepath = os.path.join(dirpath, filename)
-                    try:
-                        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
-                            lines = f.readlines()
-                            for line_num, line_content in enumerate(lines):
-                                clean_line = line_content.strip()
-                                if len(clean_line) > 2:
-                                    self.documents.append(clean_line)
-                                    self.metadata.append({
-                                        'file': filepath,
-                                        'rel_path': os.path.relpath(filepath, self.root_dir),
-                                        'line': line_num + 1,
-                                        'content': clean_line
-                                    })
-                    except Exception:
-                        pass
-        
-        if self.documents:
-            self.tfidf_matrix = self.vectorizer.fit_transform(self.documents)
-            self.is_indexed = True
-            print(f"Indexed {len(self.documents)} lines.")
-        else:
-            print("No documents found.")
-
-    def search(self, query, top_k=10, threshold=0.1):
-        if not self.is_indexed: return []
-        
-        try:
-            query_vec = self.vectorizer.transform([query])
-            cosine_similarities = cosine_similarity(query_vec, self.tfidf_matrix).flatten()
-            related_docs_indices = cosine_similarities.argsort()[:-top_k-1:-1]
-            
-            results = []
-            for index in related_docs_indices:
-                score = cosine_similarities[index]
-                if score > threshold:
-                    match = self.metadata[index]
-                    results.append({
-                        'score': int(score * 100),
-                        'file': match['file'],
-                        'rel_path': match['rel_path'],
-                        'line': match['line'],
-                        'content': match['content']
-                    })
-            return results
-        except Exception as e:
-            print(f"Search error: {e}")
-            return []
+from search_engine import LocalFileSearch
 
 # --- FLASK APP ---
 app = Flask(__name__)
 
 # Configuration
 DATA_DIR = "__data__"
-search_engine = LocalFileSearch(DATA_DIR)
+LSA_COMPONENTS = int(os.getenv("LSA_COMPONENTS", "100"))
+
+search_engine = LocalFileSearch(DATA_DIR, n_components=LSA_COMPONENTS)
 
 # Ensure data dir exists
 if not os.path.exists(DATA_DIR):
@@ -85,20 +19,49 @@ if not os.path.exists(DATA_DIR):
     with open(os.path.join(DATA_DIR, "welcome.txt"), "w") as f:
         f.write("Welcome to the local search engine!\nSearch for text in this directory.\n")
 
-# Index immediately on startup
+# Index immediately on startup (builds both TF-IDF and LSA)
 search_engine.index_files()
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    # Provide current mode to the template so the UI can reflect it
+    return render_template('index.html', current_mode=search_engine.use_lsa, components=search_engine.n_components)
+
+@app.route('/reindex', methods=['POST'])
+def reindex():
+    """Toggle between Fast (TF-IDF) and Smart (LSA) modes, optionally rebuild index on demand."""
+    req_json = request.get_json(silent=True)
+    
+    # Check if user wants to rebuild the index (e.g., new files added)
+    rebuild = False
+    if req_json:
+        use_lsa = req_json.get('use_lsa')
+        rebuild = req_json.get('rebuild', False)
+    else:
+        use_lsa = request.form.get('use_lsa')
+        rebuild = request.form.get('rebuild', False)
+    
+    # Toggle use_lsa flag (instant, no reindex needed)
+    if use_lsa is not None:
+        search_engine.use_lsa = str(use_lsa).lower() in ("1", "true", "yes", "on")
+    
+    # Optionally rebuild the index if data changed
+    if rebuild:
+        search_engine.index_files()
+    
+    mode_name = "Smart (LSA)" if search_engine.use_lsa else "Fast (TF-IDF)"
+    return render_template('_mode_controls.html', current_mode=search_engine.use_lsa, components=search_engine.n_components)
 
 @app.route('/search', methods=['POST'])
 def search_route():
     query = request.form.get('query', '')
     if len(query) < 2:
-        return "" # Return nothing if query is too short
+        return ""
     
-    results = search_engine.search(query)
+    results = search_engine.search(query, top_k=10)
+    # Convert scores to percentage for template display
+    for result in results:
+        result['score'] = int(result['score'] * 100)
     return render_template('results.html', results=results)
 
 @app.route('/view', methods=['GET'])
@@ -118,11 +81,6 @@ def view_file():
         return render_template('viewer.html', content=content, filename=os.path.basename(abs_path))
     except Exception as e:
         return f"Error reading file: {e}"
-
-@app.route('/reindex', methods=['POST'])
-def reindex():
-    search_engine.index_files()
-    return "<span class='text-success'>Index Updated!</span>"
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

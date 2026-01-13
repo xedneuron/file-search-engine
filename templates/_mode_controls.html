@@ -1,0 +1,16 @@
+<div id="mode-controls" class="mt-2 flex items-center justify-between">
+    <div class="flex items-center space-x-2">
+        <button hx-post="/reindex" hx-vals='{"use_lsa": "0"}' hx-target="#mode-controls" hx-swap="outerHTML"
+                class="py-1 px-3 rounded text-sm border {% if not current_mode %}bg-blue-600 text-white border-blue-600{% else %}bg-white text-gray-700 border-gray-200{% endif %}">Fast</button>
+
+        <button hx-post="/reindex" hx-vals='{"use_lsa": "1"}' hx-target="#mode-controls" hx-swap="outerHTML"
+                class="py-1 px-3 rounded text-sm border {% if current_mode %}bg-blue-600 text-white border-blue-600{% else %}bg-white text-gray-700 border-gray-200{% endif %}">Smart <span class="text-xs font-normal">(beta!)</span></button>
+
+        <button hx-post="/reindex" hx-target="#mode-controls" hx-swap="outerHTML" hx-vals='{"use_lsa": "1", "n_components": {{ components }}}'
+                class="py-1 px-2 ml-3 text-xs text-gray-500 hover:underline">Re-index</button>
+    </div>
+
+    <div class="text-xs text-right text-gray-500">
+        <span id="reindex-msg">LSA: <strong>{{ 'enabled' if current_mode else 'disabled' }}</strong> (components={{ components }})</span>
+    </div>
+</div>

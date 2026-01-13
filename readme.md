@@ -6,7 +6,11 @@ A lightweight Flask app that provides a fast, read-only search interface over a 
 
 ## Features ✅
 
-- Fast, local full-text search over files in `__data__`
+- **Fast (TF-IDF) Mode**: Exact term matching with morphological stemming (fly/flying match)
+- **Smart (LSA) Mode**: Semantic search with:
+  - Latent Semantic Analysis (LSA) for topic-based matching
+  - WordNet synonym expansion (e.g., search "cocoa" finds "chocolate")
+  - Category refinement: results are re-ranked by semantic similarity to the query
 - Lazily loaded results with HTMX for snappy UI and minimal JS
 - File viewer with directory-traversal protections (read-only)
 - Minimal dependencies — easy to run and extend
@@ -24,6 +28,9 @@ pip install -r requirements.txt
 2. Run the app:
 
 ```bash
+# Enable LSA (optional) and set number of components, then run Flask
+export LSA_ENABLED=1
+export LSA_COMPONENTS=50
 FLASK_APP=main.py FLASK_ENV=development flask run
 ```
 
@@ -44,6 +51,28 @@ Tips:
 
 - Small, modular codebase — add more file parsers or change ranking in `search_engine.py`.
 - Tests are not included but can be added easily (unit tests for search functions).
+
+## Search Modes — Fast vs Smart ⚡🤖
+
+The UI provides two modes to control the search behavior:
+
+- **Fast (TF-IDF)** — Exact term matching with stemming. Fast and precise.
+  - Matches: "fly" ↔ "flying" (via stem normalization)
+  - Matches: "run" ↔ "running" ↔ "ran"
+  - Does NOT match: "cocoa" ↔ "chocolate" (different terms)
+  
+- **Smart (LSA + Semantics)** — Intelligent semantic search. Slower but more aware.
+  - Matches: all of the above, PLUS
+  - Matches: "cocoa" ↔ "chocolate" (semantic synonymy via WordNet)
+  - Matches: "flying" ↔ "airborne" ↔ "aviation" (related topics via LSA)
+  - Results are re-ranked by semantic category to reduce false positives
+
+**How Smart Mode Works:**
+1. **Query Expansion**: Adds WordNet synonyms to the search query (e.g., "cocoa" → "cocoa cacao chocolate")
+2. **LSA Matching**: Finds semantically related documents using latent topic analysis
+3. **Category Refinement**: Boosts results that share semantic categories with the query (e.g., both food-related)
+
+Toggle modes from the left panel—switching is instant (no reindex needed). You can also control LSA via environment variable `LSA_COMPONENTS` (default: 100).
 
 ## Security & Limitations ⚠️
 
