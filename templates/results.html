@@ -1,7 +1,7 @@
 {% if results %}
     {% for res in results %}
-    <div class="p-3 bg-white border rounded hover:bg-blue-50 cursor-pointer transition"
-         hx-get="/view?path={{ res.file }}"
+        <div class="p-3 bg-white border rounded hover:bg-blue-50 cursor-pointer transition"
+            hx-get="/view?path={{ res.file }}&line={{ res.line_param }}"
          hx-target="#file-viewer"
          hx-swap="innerHTML">
         

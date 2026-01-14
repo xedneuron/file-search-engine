@@ -69,11 +69,12 @@
             </div>
         </div>
 
-        <div class="w-2/3 flex flex-col bg-gray-50">
-            <div id="file-viewer" class="flex-1 p-8 overflow-y-auto">
-                <div class="text-gray-400 text-center mt-20 text-xl">
-                    Select a file result to view contents.
-                </div>
+        <div id="file-viewer"
+             class="flex-1 p-8 overflow-y-auto"
+             hx-on:htmx:afterSwap="setTimeout(()=>{ const target = this.querySelector('.scroll-target'); if (target) { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }, 40);">
+
+            <div class="text-gray-400 text-center mt-20 text-xl">
+                Select a file result to view contents.
             </div>
         </div>
     </div>

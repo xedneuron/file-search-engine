@@ -3,5 +3,40 @@
         <h2 class="text-2xl font-bold text-gray-800">{{ filename }}</h2>
         <span class="text-xs text-gray-400">Read-only view</span>
     </div>
-    <pre class="font-mono text-sm text-gray-700">{{ content }}</pre>
+        <pre class="font-mono text-sm text-gray-700">{{ content }}</pre>
+
+        <script>
+        (function(){
+            try {
+                // Find the first highlighted element inserted by the server
+                const target = document.querySelector('.scroll-target');
+                if (!target) return;
+
+                // Find nearest scrollable ancestor
+                function findScrollParent(el) {
+                    while (el && el !== document.body) {
+                        const st = window.getComputedStyle(el);
+                        if (/(auto|scroll)/.test(st.overflowY)) return el;
+                        el = el.parentElement;
+                    }
+                    return document.scrollingElement || document.documentElement;
+                }
+
+                const scrollParent = findScrollParent(target);
+
+                // Center the target in the scrollable container
+                const targetRect = target.getBoundingClientRect();
+                const parentRect = scrollParent.getBoundingClientRect();
+                const offset = targetRect.top - parentRect.top - (parentRect.height/2) + (targetRect.height/2);
+                scrollParent.scrollBy({ top: offset, behavior: 'smooth' });
+
+                // Brief visual flash to confirm focus (keeps debug info intact)
+                target.style.transition = 'box-shadow 0.6s ease, background-color 0.6s ease';
+                const origBg = target.style.backgroundColor;
+                target.style.backgroundColor = '#fde68a';
+                target.style.boxShadow = '0 0 0 3px rgba(250,204,21,0.25)';
+                setTimeout(()=>{ target.style.backgroundColor = origBg; target.style.boxShadow = ''; }, 900);
+            } catch (e) { console && console.error && console.error(e); }
+        })();
+        </script>
 </div>

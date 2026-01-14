@@ -1,7 +1,9 @@
 import os
 import time
+import urllib.parse
 from flask import Flask, render_template, request, abort
 from search_engine import LocalFileSearch
+from markupsafe import Markup
 
 # --- FLASK APP ---
 app = Flask(__name__)
@@ -62,6 +64,14 @@ def search_route():
     # Convert scores to percentage for template display
     for result in results:
         result['score'] = int(result['score'] * 100)
+        # Provide a URL-safe, encoded version of the matched content so
+        # `hx-get` attributes won't break when `res.content` contains
+        # spaces, quotes, or other special characters.
+        try:
+            result['line_param'] = urllib.parse.quote(result.get('content', ''), safe='')
+        except Exception:
+            result['line_param'] = ''
+
     return render_template('results.html', results=results)
 
 @app.route('/view', methods=['GET'])
@@ -71,13 +81,34 @@ def view_file():
     if not req_path:
         return "No file specified."
     
+    req_line = request.args.get('line')
+    print(f"Viewing file: {req_path} with highlight: {req_line if req_line else 'None'}")
+    if not req_line:
+        return "No line specified."
+
     abs_path = os.path.abspath(req_path)
     if not abs_path.startswith(search_engine.root_dir):
         return abort(403, "Access Denied: Cannot view files outside data directory.")
 
     try:
+        import re
         with open(abs_path, 'r', encoding='utf-8', errors='replace') as f:
-            content = f.read()
+            read_text = f.read()
+        
+        # Escape HTML later
+        escaped_text = str(Markup.escape(read_text))
+        
+        # Build regex pattern from the search term and highlight matches
+        pattern = re.escape(str(Markup.escape(req_line)))
+        highlighted = re.sub(
+            f'({pattern})',
+            r'<mark class="scroll-target bg-yellow-200">\1</mark>',
+            escaped_text,
+            flags=re.IGNORECASE
+        )
+        
+        # Wrap in Markup so Jinja2 doesn't escape the <mark> tags
+        content = Markup(highlighted)
         return render_template('viewer.html', content=content, filename=os.path.basename(abs_path))
     except Exception as e:
         return f"Error reading file: {e}"
