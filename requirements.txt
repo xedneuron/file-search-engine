@@ -1,2 +1,6 @@
 scikit-learn
 flask
+nltk
+numpy
+ollama
+requests
