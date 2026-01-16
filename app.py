@@ -29,6 +29,19 @@ def index():
     # Provide current mode to the template so the UI can reflect it
     return render_template('index.html', current_mode=search_engine.use_lsa, components=search_engine.n_components)
 
+@app.route('/mode/data-search')
+def mode_data_search():
+    return render_template('_data_search.html')
+
+@app.route('/mode/rag')
+def mode_rag():
+    return render_template('_rag.html')
+
+@app.route('/rag-search', methods=['POST'])
+def rag_search():
+    # Your RAG search implementation here
+    pass
+
 @app.route('/reindex', methods=['POST'])
 def reindex():
     """Toggle between Fast (TF-IDF) and Smart (LSA) modes, optionally rebuild index on demand."""
