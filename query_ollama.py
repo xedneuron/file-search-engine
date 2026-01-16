@@ -93,7 +93,7 @@ class RAG:
         context = self._build_context(relevant_docs)
         
         # Step 5: Generate response with streaming
-        yield ("Generating response...", None, 
+        yield ("Generating response...", relevant_docs, 
                self._generate_response(query, context))
         # response_stream = self._generate_response(query, context)
         
